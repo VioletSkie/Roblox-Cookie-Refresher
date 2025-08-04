@@ -4,15 +4,30 @@ class NetworkBackground {
         this.canvas = document.getElementById('network-canvas');
         this.ctx = this.canvas.getContext('2d');
         this.dots = [];
-        this.dotCount = 80;
+        this.dotCount = this.calculateDotCount();
         this.maxDistance = 150;
         this.connectionRotation = 0;
         this.mouseX = 0;
         this.mouseY = 0;
+        this.trailLength = 60; // Number of frames to keep for trail
+        this.frameCount = 0;
         
         this.init();
         this.animate();
         this.setupEventListeners();
+    }
+
+    calculateDotCount() {
+        const screenArea = window.innerWidth * window.innerHeight;
+        const baseArea = 1920 * 1080; // Base resolution
+        const baseDotCount = 120; // Base number of dots
+        
+        // Calculate ratio and adjust dot count
+        const ratio = Math.sqrt(screenArea / baseArea);
+        const adjustedCount = Math.floor(baseDotCount * ratio);
+        
+        // Ensure minimum and maximum limits
+        return Math.max(30, Math.min(200, adjustedCount));
     }
 
     init() {
@@ -23,6 +38,7 @@ class NetworkBackground {
     resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        this.dotCount = this.calculateDotCount();
     }
 
     createDots() {
@@ -35,17 +51,16 @@ class NetworkBackground {
             this.dots.push({
                 x: x,
                 y: y,
-                originalX: x,
-                originalY: y,
-                vx: (Math.random() - 0.5) * 0.5,
-                vy: (Math.random() - 0.5) * 0.5,
+                vx: (Math.random() - 0.5) * 1.2, // Increased speed
+                vy: (Math.random() - 0.5) * 1.2,
                 radius: Math.random() * 1.5 + 1,
                 opacity: Math.random() * 0.4 + 0.3,
                 pulsePhase: Math.random() * Math.PI * 2,
-                rotationSpeed: (Math.random() - 0.5) * 0.02 + 0.01,
-                driftRadius: Math.random() * 30 + 20,
-                driftSpeed: Math.random() * 0.02 + 0.01,
-                driftAngle: Math.random() * Math.PI * 2
+                trail: [], // Store previous positions for trail
+                wanderAngle: Math.random() * Math.PI * 2,
+                wanderRadius: Math.random() * 2 + 1,
+                wanderDistance: Math.random() * 50 + 30,
+                maxSpeed: Math.random() * 0.8 + 0.4
             });
         }
     }
@@ -70,6 +85,20 @@ class NetworkBackground {
         const mouseInfluence = Math.max(0, 1 - mouseDistance / 200);
         const attractionRadius = dot.radius + mouseInfluence * 0.5;
         
+        // Draw trail
+        if (dot.trail.length > 1) {
+            for (let i = 0; i < dot.trail.length - 1; i++) {
+                const trailOpacity = (i / dot.trail.length) * finalOpacity * 0.3;
+                const trailRadius = attractionRadius * (i / dot.trail.length) * 0.5;
+                
+                this.ctx.beginPath();
+                this.ctx.arc(dot.trail[i].x, dot.trail[i].y, trailRadius, 0, Math.PI * 2);
+                this.ctx.fillStyle = `rgba(147, 51, 234, ${trailOpacity})`;
+                this.ctx.fill();
+            }
+        }
+        
+        // Draw main dot
         this.ctx.beginPath();
         this.ctx.arc(dot.x, dot.y, attractionRadius, 0, Math.PI * 2);
         
@@ -111,52 +140,76 @@ class NetworkBackground {
     }
 
     updateDot(dot) {
-        dot.driftAngle += dot.driftSpeed;
+        // Store previous position for trail
+        dot.trail.push({ x: dot.x, y: dot.y });
+        if (dot.trail.length > this.trailLength) {
+            dot.trail.shift();
+        }
         
-        const targetX = dot.originalX + Math.cos(dot.driftAngle) * dot.driftRadius;
-        const targetY = dot.originalY + Math.sin(dot.driftAngle) * dot.driftRadius;
+        // Wandering behavior - more natural movement
+        dot.wanderAngle += (Math.random() - 0.5) * 0.3;
         
-        const dx = targetX - dot.x;
-        const dy = targetY - dot.y;
+        // Calculate desired velocity based on wander angle
+        const wanderX = Math.cos(dot.wanderAngle) * dot.wanderRadius;
+        const wanderY = Math.sin(dot.wanderAngle) * dot.wanderRadius;
         
-        dot.x += dx * 0.02 + dot.vx;
-        dot.y += dy * 0.02 + dot.vy;
+        // Add some randomness
+        const randomForceX = (Math.random() - 0.5) * 0.1;
+        const randomForceY = (Math.random() - 0.5) * 0.1;
         
-        dot.vx += (Math.random() - 0.5) * 0.01;
-        dot.vy += (Math.random() - 0.5) * 0.01;
+        // Update velocity
+        dot.vx += wanderX * 0.01 + randomForceX;
+        dot.vy += wanderY * 0.01 + randomForceY;
         
-        dot.vx *= 0.98;
-        dot.vy *= 0.98;
+        // Limit speed
+        const speed = Math.hypot(dot.vx, dot.vy);
+        if (speed > dot.maxSpeed) {
+            dot.vx = (dot.vx / speed) * dot.maxSpeed;
+            dot.vy = (dot.vy / speed) * dot.maxSpeed;
+        }
         
-        const margin = 100;
+        // Apply velocity
+        dot.x += dot.vx;
+        dot.y += dot.vy;
+        
+        // Apply friction
+        dot.vx *= 0.995;
+        dot.vy *= 0.995;
+        
+        // Wrap around screen edges with smooth transition
+        const margin = 50;
         if (dot.x < -margin) {
             dot.x = this.canvas.width + margin;
-            dot.originalX = this.canvas.width;
+            dot.trail = []; // Clear trail when wrapping
         }
         if (dot.x > this.canvas.width + margin) {
             dot.x = -margin;
-            dot.originalX = 0;
+            dot.trail = [];
         }
         if (dot.y < -margin) {
             dot.y = this.canvas.height + margin;
-            dot.originalY = this.canvas.height;
+            dot.trail = [];
         }
         if (dot.y > this.canvas.height + margin) {
             dot.y = -margin;
-            dot.originalY = 0;
+            dot.trail = [];
         }
     }
 
     animate() {
-        this.ctx.fillStyle = 'rgba(10, 10, 15, 0.05)';
+        // Clear canvas with proper trail fading
+        this.ctx.fillStyle = 'rgba(10, 10, 15, 0.08)'; // Slightly more opaque for better trail fading
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
+        this.frameCount++;
         this.connectionRotation += 0.005;
 
+        // Update all dots
         this.dots.forEach(dot => {
             this.updateDot(dot);
         });
 
+        // Draw connections
         for (let i = 0; i < this.dots.length; i++) {
             for (let j = i + 1; j < this.dots.length; j++) {
                 const distance = Math.hypot(
@@ -170,6 +223,7 @@ class NetworkBackground {
             }
         }
 
+        // Draw all dots
         this.dots.forEach(dot => {
             this.drawDot(dot);
         });
@@ -198,12 +252,10 @@ function processCookie() {
         try {
             const processedCookie = processCookieData(input);
             outputField.value = processedCookie;
-            autoResize(outputField);
             
             updateStatus('success', 'Cookie processed successfully');
         } catch (error) {
             outputField.value = `Error: ${error.message}`;
-            autoResize(outputField);
             updateStatus('error', 'Processing failed');
         }
         
@@ -251,11 +303,6 @@ function updateStatus(type, message) {
     statusText.textContent = message;
 }
 
-function autoResize(textarea) {
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 400) + 'px';
-}
-
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     const networkBg = new NetworkBackground();
@@ -263,32 +310,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const cookieInput = document.getElementById('cookieInput');
     const outputField = document.getElementById('outputField');
     
-    cookieInput.addEventListener('input', function() {
-        autoResize(this);
-    });
-    
-    const observer = new MutationObserver(function() {
-        autoResize(outputField);
-    });
-    
-    observer.observe(outputField, {
-        attributes: true,
-        attributeFilter: ['value']
-    });
-    
-    const originalSetValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
-    Object.defineProperty(outputField, 'value', {
-        set: function(newValue) {
-            originalSetValue.call(this, newValue);
-            setTimeout(() => autoResize(this), 0);
-        },
-        get: function() {
-            return this.getAttribute('value') || this.textContent || '';
-        }
-    });
-    
     updateStatus('ready', 'Ready');
     
+    // Keyboard shortcuts
     document.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
@@ -298,12 +322,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Escape') {
             if (document.activeElement === cookieInput) {
                 cookieInput.value = '';
-                autoResize(cookieInput);
                 updateStatus('ready', 'Ready');
             }
         }
     });
     
+    // Double-click to copy output
     outputField.addEventListener('dblclick', function() {
         if (this.value.trim()) {
             navigator.clipboard.writeText(this.value).then(() => {
@@ -319,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Smooth scroll to output after processing
     const originalUpdateStatus = window.updateStatus;
     window.updateStatus = function(type, message) {
         originalUpdateStatus(type, message);
@@ -333,12 +358,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Initial animation
     setTimeout(() => {
         document.querySelector('.main-card').style.opacity = '1';
         document.querySelector('.main-card').style.transform = 'translateY(0)';
     }, 100);
 });
 
+// Set initial card state for animation
 document.querySelector('.main-card').style.opacity = '0';
 document.querySelector('.main-card').style.transform = 'translateY(20px)';
 document.querySelector('.main-card').style.transition = 'opacity 0.6s ease, transform 0.6s ease';
