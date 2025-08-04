@@ -250,35 +250,48 @@ class NetworkBackground {
 }
 
 // Cookie processing functionality
-function processCookie() {
-    const input = document.getElementById('cookieInput').value;
+async function processCookie() {
+    const input = document.getElementById('cookieInput').value.trim();
     const outputField = document.getElementById('outputField');
-    
-    if (!input.trim()) {
+    const button = document.querySelector('.action-button');
+    const originalText = button.innerHTML;
+
+    if (!input) {
         updateStatus('error', 'Please enter cookie data');
         return;
     }
-    
-    const button = document.querySelector('.action-button');
-    const originalText = button.innerHTML;
+
     button.innerHTML = 'Processing...';
     button.disabled = true;
     updateStatus('processing', 'Processing cookie...');
-    
-    setTimeout(() => {
-        try {
-            const processedCookie = processCookieData(input);
-            outputField.value = processedCookie;
-            
-            updateStatus('success', 'Cookie processed successfully');
-        } catch (error) {
-            outputField.value = `Error: ${error.message}`;
-            updateStatus('error', 'Processing failed');
+
+    try {
+        const response = await fetch('https://roblox-cookie-refresher-backend.onrender.com/refresh-cookie', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cookie: input })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status} ${response.statusText}`);
         }
-        
-        button.innerHTML = originalText;
-        button.disabled = false;
-    }, 1500);
+
+        const data = await response.json();
+
+        if (data && data.refreshedCookie) {
+            outputField.value = data.refreshedCookie;
+            updateStatus('success', 'Cookie refreshed successfully');
+        } else {
+            outputField.value = JSON.stringify(data, null, 2);
+            updateStatus('error', 'Unexpected response from server');
+        }
+    } catch (error) {
+        outputField.value = `Error: ${error.message}`;
+        updateStatus('error', 'Processing failed');
+    }
+
+    button.innerHTML = originalText;
+    button.disabled = false;
 }
 
 function processCookieData(cookieString) {
