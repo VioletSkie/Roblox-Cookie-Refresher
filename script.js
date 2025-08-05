@@ -9,7 +9,7 @@ class NetworkBackground {
         this.connectionRotation = 0;
         this.mouseX = 0;
         this.mouseY = 0;
-        this.trailLength = 15; // Reduced for better performance and cleaner look
+        this.trailLength = 8; // Much shorter trails
         this.frameCount = 0;
         
         this.init();
@@ -155,8 +155,8 @@ class NetworkBackground {
     }
 
     updateDot(dot) {
-        // Store previous position for trail - only every few frames for performance
-        if (this.frameCount % 3 === 0) { // Store trail every 3 frames for cleaner trails
+        // Store previous position for trail - less frequently for cleaner trails
+        if (this.frameCount % 4 === 0) { // Store trail every 4 frames for much cleaner trails
             dot.trail.push({ x: dot.x, y: dot.y });
             if (dot.trail.length > this.trailLength) {
                 dot.trail.shift();
@@ -216,8 +216,8 @@ class NetworkBackground {
     }
 
     animate() {
-        // Clear canvas with better fade effect for cleaner trails
-        this.ctx.fillStyle = 'rgba(10, 10, 15, 0.18)'; // Increased opacity for better trail cleanup
+        // Clear canvas completely for proper trail cleanup
+        this.ctx.fillStyle = 'rgba(10, 10, 15, 1)'; // Full opacity clear
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         this.frameCount++;
@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Remove copying class after animation
                 setTimeout(() => {
                     this.classList.remove('copying');
-                }, 800);
+                }, 600);
                 
             }).catch(() => {
                 updateStatus('error', 'Failed to copy');
