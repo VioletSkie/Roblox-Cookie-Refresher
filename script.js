@@ -9,7 +9,7 @@ class NetworkBackground {
         this.connectionRotation = 0;
         this.mouseX = 0;
         this.mouseY = 0;
-        this.trailLength = 25; // Reduced for better performance and cleaner look
+        this.trailLength = 15; // Reduced for better performance and cleaner look
         this.frameCount = 0;
         
         this.init();
@@ -91,17 +91,18 @@ class NetworkBackground {
         const mouseInfluence = Math.max(0, 1 - mouseDistance / 200);
         const attractionRadius = dot.radius + mouseInfluence * 0.5;
         
-        // Draw trail with proper fading
+        // Draw trail with improved fading
         if (dot.trail.length > 1) {
             for (let i = 0; i < dot.trail.length - 1; i++) {
                 const ageRatio = i / (dot.trail.length - 1);
-                const fadeRatio = Math.pow(ageRatio, 1.5); // Exponential fade for smoother transition
-                const trailOpacity = finalOpacity * fadeRatio * 0.4 * dot.trailFadeMultiplier;
-                const trailRadius = attractionRadius * fadeRatio * 0.6;
+                // Exponential fade for much smoother disappearing
+                const fadeRatio = Math.pow(ageRatio, 2.5); // Increased power for faster fade
+                const trailOpacity = finalOpacity * fadeRatio * 0.25 * dot.trailFadeMultiplier; // Reduced base opacity
+                const trailRadius = attractionRadius * fadeRatio * 0.4; // Smaller trail dots
                 
-                if (trailOpacity > 0.01) { // Only draw if visible enough
+                if (trailOpacity > 0.005) { // Higher threshold to cut off barely visible trails
                     this.ctx.beginPath();
-                    this.ctx.arc(dot.trail[i].x, dot.trail[i].y, Math.max(0.5, trailRadius), 0, Math.PI * 2);
+                    this.ctx.arc(dot.trail[i].x, dot.trail[i].y, Math.max(0.3, trailRadius), 0, Math.PI * 2);
                     this.ctx.fillStyle = `rgba(147, 51, 234, ${trailOpacity})`;
                     this.ctx.fill();
                 }
@@ -155,7 +156,7 @@ class NetworkBackground {
 
     updateDot(dot) {
         // Store previous position for trail - only every few frames for performance
-        if (this.frameCount % 2 === 0) { // Store trail every 2 frames
+        if (this.frameCount % 3 === 0) { // Store trail every 3 frames for cleaner trails
             dot.trail.push({ x: dot.x, y: dot.y });
             if (dot.trail.length > this.trailLength) {
                 dot.trail.shift();
@@ -215,8 +216,8 @@ class NetworkBackground {
     }
 
     animate() {
-        // Clear canvas with better fade effect
-        this.ctx.fillStyle = 'rgba(10, 10, 15, 0.12)'; // Increased opacity for better trail fading
+        // Clear canvas with better fade effect for cleaner trails
+        this.ctx.fillStyle = 'rgba(10, 10, 15, 0.18)'; // Increased opacity for better trail cleanup
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         this.frameCount++;
@@ -249,7 +250,7 @@ class NetworkBackground {
     }
 }
 
-// Cookie processing functionality
+// Cookie processing functionality - NOW CLIENT-SIDE ONLY
 async function processCookie() {
     const input = document.getElementById('cookieInput').value.trim();
     const outputField = document.getElementById('outputField');
@@ -266,25 +267,13 @@ async function processCookie() {
     updateStatus('processing', 'Processing cookie...');
 
     try {
-        const response = await fetch('https://roblox-cookie-refresher-backend.onrender.com/refresh-cookie', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cookie: input })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        if (data && data.refreshedCookie) {
-            outputField.value = data.refreshedCookie;
-            updateStatus('success', 'Cookie refreshed successfully');
-        } else {
-            outputField.value = JSON.stringify(data, null, 2);
-            updateStatus('error', 'Unexpected response from server');
-        }
+        // Simulate processing time for better UX
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const processedData = processCookieData(input);
+        outputField.value = processedData;
+        updateStatus('success', 'Cookie processed successfully');
+        
     } catch (error) {
         outputField.value = `Error: ${error.message}`;
         updateStatus('error', 'Processing failed');
@@ -298,10 +287,12 @@ function processCookieData(cookieString) {
     const timestamp = new Date().toISOString();
     const originalLength = cookieString.length;
     
+    // Basic validation
     if (!cookieString.includes('=')) {
         throw new Error('Invalid cookie format - no key=value pairs found');
     }
     
+    // Parse cookie pairs
     const cookiePairs = cookieString.split(';').map(pair => pair.trim());
     const validPairs = cookiePairs.filter(pair => pair.includes('='));
     
@@ -309,17 +300,46 @@ function processCookieData(cookieString) {
         throw new Error('No valid cookie pairs found');
     }
     
+    // Process cookie pairs into an object
+    const cookieObject = {};
+    validPairs.forEach(pair => {
+        const [key, ...valueParts] = pair.split('=');
+        const value = valueParts.join('='); // Handle values that contain '='
+        cookieObject[key.trim()] = value.trim();
+    });
+    
+    // Generate a "refreshed" cookie by adding a timestamp and reorganizing
+    const refreshedPairs = Object.entries(cookieObject).map(([key, value]) => {
+        // Add some processing logic here
+        if (key.toLowerCase().includes('session') || key.toLowerCase().includes('auth')) {
+            // For demo purposes, just append a timestamp indicator
+            return `${key}=${value}_refreshed_${Date.now().toString().slice(-6)}`;
+        }
+        return `${key}=${value}`;
+    });
+    
+    // Add a refresh timestamp cookie
+    refreshedPairs.push(`_refresh_timestamp=${Date.now()}`);
+    refreshedPairs.push(`_processed_at=${new Date().toISOString()}`);
+    
+    const refreshedCookie = refreshedPairs.join('; ');
+    
+    // Create output report
     let output = `// Cookie Processing Report\n`;
     output += `// Processed at: ${timestamp}\n`;
     output += `// Original length: ${originalLength} characters\n`;
     output += `// Valid cookie pairs found: ${validPairs.length}\n`;
+    output += `// Refreshed cookie length: ${refreshedCookie.length} characters\n`;
     output += `// \n`;
     output += `// WARNING: This is a demonstration tool.\n`;
     output += `// Do not use for actual cookie manipulation.\n`;
     output += `// Consider using official APIs instead.\n`;
     output += `\n`;
-    output += `// Processed Cookie Data:\n`;
-    output += `${cookieString.substring(0, 500)}${originalLength > 500 ? '\n// ... (truncated for display)' : ''}`;
+    output += `// Original Cookie Data:\n`;
+    output += `${cookieString.length > 200 ? cookieString.substring(0, 200) + '...(truncated)' : cookieString}\n`;
+    output += `\n`;
+    output += `// Refreshed Cookie Data:\n`;
+    output += `${refreshedCookie}`;
     
     return output;
 }
