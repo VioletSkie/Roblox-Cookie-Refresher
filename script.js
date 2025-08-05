@@ -9,7 +9,7 @@ class NetworkBackground {
         this.connectionRotation = 0;
         this.mouseX = 0;
         this.mouseY = 0;
-        this.trailLength = 8; // Much shorter trails
+        this.trailLength = 12; // Moderate trail length for visible fading
         this.frameCount = 0;
         
         this.init();
@@ -91,18 +91,18 @@ class NetworkBackground {
         const mouseInfluence = Math.max(0, 1 - mouseDistance / 200);
         const attractionRadius = dot.radius + mouseInfluence * 0.5;
         
-        // Draw trail with improved fading
+        // Draw trail with proper fading
         if (dot.trail.length > 1) {
             for (let i = 0; i < dot.trail.length - 1; i++) {
                 const ageRatio = i / (dot.trail.length - 1);
-                // Exponential fade for much smoother disappearing
-                const fadeRatio = Math.pow(ageRatio, 2.5); // Increased power for faster fade
-                const trailOpacity = finalOpacity * fadeRatio * 0.25 * dot.trailFadeMultiplier; // Reduced base opacity
-                const trailRadius = attractionRadius * fadeRatio * 0.4; // Smaller trail dots
+                // Better exponential fade for smoother trail disappearing
+                const fadeRatio = Math.pow(ageRatio, 3); // Increased power for better fade
+                const trailOpacity = finalOpacity * fadeRatio * 0.2 * dot.trailFadeMultiplier; // Reduced base opacity
+                const trailRadius = attractionRadius * fadeRatio * 0.3; // Smaller trail dots
                 
-                if (trailOpacity > 0.005) { // Higher threshold to cut off barely visible trails
+                if (trailOpacity > 0.01) { // Proper threshold
                     this.ctx.beginPath();
-                    this.ctx.arc(dot.trail[i].x, dot.trail[i].y, Math.max(0.3, trailRadius), 0, Math.PI * 2);
+                    this.ctx.arc(dot.trail[i].x, dot.trail[i].y, Math.max(0.2, trailRadius), 0, Math.PI * 2);
                     this.ctx.fillStyle = `rgba(147, 51, 234, ${trailOpacity})`;
                     this.ctx.fill();
                 }
@@ -155,8 +155,8 @@ class NetworkBackground {
     }
 
     updateDot(dot) {
-        // Store previous position for trail - less frequently for cleaner trails
-        if (this.frameCount % 4 === 0) { // Store trail every 4 frames for much cleaner trails
+        // Store previous position for trail
+        if (this.frameCount % 2 === 0) { // Store trail every 2 frames for smooth fading
             dot.trail.push({ x: dot.x, y: dot.y });
             if (dot.trail.length > this.trailLength) {
                 dot.trail.shift();
@@ -216,8 +216,8 @@ class NetworkBackground {
     }
 
     animate() {
-        // Clear canvas completely for proper trail cleanup
-        this.ctx.fillStyle = 'rgba(10, 10, 15, 1)'; // Full opacity clear
+        // Clear canvas with partial transparency to allow trails to fade
+        this.ctx.fillStyle = 'rgba(10, 10, 15, 0.25)'; // Partial transparency for trail fading
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         this.frameCount++;
