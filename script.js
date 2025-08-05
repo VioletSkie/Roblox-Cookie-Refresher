@@ -250,38 +250,67 @@ class NetworkBackground {
     }
 }
 
-// Cookie processing functionality - NOW CLIENT-SIDE ONLY
+// Cookie processing functionality
 async function processCookie() {
-    const input = document.getElementById('cookieInput').value.trim();
-    const outputField = document.getElementById('outputField');
-    const button = document.querySelector('.action-button');
-    const originalText = button.innerHTML;
+  const input = document.getElementById('cookieInput').value.trim();
+  const outputField = document.getElementById('outputField');
+  const button = document.querySelector('.action-button');
+  const originalText = button.innerHTML;
 
-    if (!input) {
-        updateStatus('error', 'Please enter cookie data');
-        return;
+  if (!input) {
+    updateStatus('error', 'Please enter cookie data');
+    return;
+  }
+
+  button.innerHTML = 'Processing...';
+  button.disabled = true;
+  updateStatus('processing', 'Processing cookie...');
+
+  try {
+    // Normalize the cookie input to just the raw value starting with _|WARNING
+    const rawCookieValue = extractRawCookieValue(input);
+
+    if (!rawCookieValue || !rawCookieValue.startsWith('_|WARNING')) {
+      throw new Error('Could not find a valid Roblox cookie starting with "_|WARNING"');
     }
 
-    button.innerHTML = 'Processing...';
-    button.disabled = true;
-    updateStatus('processing', 'Processing cookie...');
+    // For demo, just output the cleaned cookie value
+    outputField.value = rawCookieValue;
 
-    try {
-        // Simulate processing time for better UX
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const processedData = processCookieData(input);
-        outputField.value = processedData;
-        updateStatus('success', 'Cookie processed successfully');
-        
-    } catch (error) {
-        outputField.value = `Error: ${error.message}`;
-        updateStatus('error', 'Processing failed');
-    }
+    updateStatus('success', 'Cookie processed successfully');
 
-    button.innerHTML = originalText;
-    button.disabled = false;
+  } catch (error) {
+    outputField.value = `Error: ${error.message}`;
+    updateStatus('error', 'Processing failed');
+  }
+
+  button.innerHTML = originalText;
+  button.disabled = false;
 }
+
+// Helper function to extract raw cookie value from any input format
+function extractRawCookieValue(input) {
+  // Try to match .ROBLOSECURITY=someValue; or without semicolon
+  const regex = /\.ROBLOSECURITY=([^;]+)/i;
+  const match = input.match(regex);
+
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+
+  // If no key=value pair found, assume input is raw cookie value already
+  return input.trim();
+}
+
+// Example updateStatus implementation (if you want me to write this let me know)
+function updateStatus(status, message) {
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+
+  statusDot.className = 'status-dot ' + status;
+  statusText.textContent = message;
+}
+
 
 function processCookieData(cookieString) {
     const timestamp = new Date().toISOString();
