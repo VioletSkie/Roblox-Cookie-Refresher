@@ -377,9 +377,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Double-click to copy output
-    outputField.addEventListener('dblclick', function() {
+    // Click to copy output with glow effect
+    outputField.addEventListener('click', function() {
         if (this.value.trim()) {
+            // Add copying class for animation
+            this.classList.add('copying');
+            
             navigator.clipboard.writeText(this.value).then(() => {
                 const originalStatus = document.getElementById('statusText').textContent;
                 updateStatus('success', 'Copied to clipboard!');
@@ -387,8 +390,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(() => {
                     updateStatus('ready', originalStatus);
                 }, 2000);
+                
+                // Remove copying class after animation
+                setTimeout(() => {
+                    this.classList.remove('copying');
+                }, 600);
+                
             }).catch(() => {
                 updateStatus('error', 'Failed to copy');
+                this.classList.remove('copying');
             });
         }
     });
