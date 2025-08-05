@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Remove copying class after animation
                 setTimeout(() => {
                     this.classList.remove('copying');
-                }, 600);
+                }, 800);
                 
             }).catch(() => {
                 updateStatus('error', 'Failed to copy');
