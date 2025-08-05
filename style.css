@@ -166,6 +166,7 @@ body {
     transition: none;
     position: relative;
     pointer-events: auto;
+    caret-color: transparent;
 }
 
 .output-field::selection {
